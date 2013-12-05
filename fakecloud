@@ -69,18 +69,28 @@ function check_environment() {
 }
 
 function usage() {
-    echo -e "${prog} [options] [command]\n"
-    echo "Valid commands:"
-    echo "  create [name] [distrelease]"
-    echo "  rekick [name]"
-    echo "  destroy [name]"
-    echo "  list"
-    echo "  reboot [name]"
-    echo -e "\n"
-    echo "Valid options:"
-    echo "  -d           enable debug"
-    echo "  -f [flavor]  create instance using flavor"
-    echo "  -h [hints]   create using specified hints"
+    cat <<EOF
+${prog} [options] [command]
+
+Valid commands:
+    create {<name>} {<distrelease>}
+    destroy {<name>}
+    rekick {<name>}
+    reboot {<name>}
+    start {<name>}
+    stop {<name>}
+    list
+    image {<cmd>}
+        Valid 'image' sub-commands: list
+    submit {<file>}
+
+Valid options:
+    -d                      enable debug
+    -f {<flavor>}           create instance using <flavor>
+    -D {<disk_flavor>}      create instance with <disk_flavor>
+    -h {<hints>}            create instance using specified <hints>
+    -p {<script>}           post-install script to run (see README)
+EOF
 
     trap - ERR EXIT
     exit 1
