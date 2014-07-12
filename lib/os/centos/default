@@ -1,11 +1,125 @@
 # -*- mode: shell-script -*-
+# vim: set ft=sh :
 
 source ${LIB_DIR}/os/rhelish
 
 # default to RHELISH_EXTRA_PACKAGES, but can be overriden for
-# centos-specific packages
-
+# centos-specific packages.
+#
+# (these get installed via chroot in lib/disk/default.)
+#
 EXTRA_PACKAGES=${CENTOS_EXTRA_PACKAGES:-${EXTRA_PACKAGES}}
+
+function get_yumconf() {
+    # $1 - dist
+    # $2 - release
+    # $3 - mirror
+    local dist=${1}
+    local release=${2}
+    local mirror=${3}
+
+    mkdir -p $BASE_DIR/cache/yum
+
+    cat <<EOF
+[main]
+assumeyes=1
+keepcache=1
+
+[base]
+name=${dist}-${release}-base
+baseurl=${mirror}
+enabled=1
+
+[updates]
+name=${dist}-${release}-updates
+baseurl=${mirror}
+enabled=1
+
+[extras]
+name=${dist}-${release}-extras
+baseurl=${mirror}
+enabled=1
+
+[epel]
+name=epel-${release}
+mirrorlist=http://mirrors.fedoraproject.org/metalink?repo=epel-${release}&arch=\$basearch
+failovermethod=priority
+enabled=1
+EOF
+
+}
+
+function bootstrap() {
+    # bootstrap a distro
+    # $1 - dist
+    # $2 - release
+    # $3 - mirror
+    # $4 - newroot
+    local dist=${1}
+    local release=${2}
+    local mirror=${3}
+    local newroot=${4}
+
+    local tmp_yumconf=$(mktemp)
+
+    function bootstrap_cleanup() {
+        rm -rf ${tmp_yumconf}
+        return 1
+    }
+    trap "bootstrap_cleanup; return 1" SIGINT SIGTERM ERR
+
+    # basic necessities for installing Base group
+    mkdir ${newroot}/etc
+    touch ${newroot}/etc/fstab
+    mkdir ${newroot}/proc
+    mount -t proc none ${newroot}/proc
+
+    # get a yum.conf in /tmp
+    get_yumconf $dist $release $mirror > ${tmp_yumconf}
+
+    ## bootstrap base OS
+    yum --config=${tmp_yumconf} --installroot=${newroot} -y groupinstall Base
+
+    #mkdir -p ${newroot}/dev/pts
+    #mkdir -p ${newroot}/sys/block
+    #chroot ${newroot} mount -t devpts none /dev/pts || true
+    #test -e /dev/ptmx || chroot $imagedir mknod --mode 666 /dev/ptmx c 5 2
+    #              
+    #yum --config=${tmp_yumconf} --installroot=${newroot} -y clean packages
+    #
+    #chroot ${newroot} authconfig --enableshadow --useshadow --enablemd5 --updateall
+    #chroot ${newroot} /sbin/ldconfig -v
+    #mv ${newroot}/lib64/tls ${newroot}/lib64/tls.disabled || true
+    #
+    ### fix logrotate
+    #touch ${newroot}/var/log/boot.log
+    #
+    #echo "Disabling TTYs"
+    #perl -p -i -e 's/(.*tty2)/#\1/' ${newroot}/etc/inittab
+    #perl -p -i -e 's/(.*tty3)/#\1/' ${newroot}/etc/inittab
+    #perl -p -i -e 's/(.*tty4)/#\1/' ${newroot}/etc/inittab
+    #perl -p -i -e 's/(.*tty5)/#\1/' ${newroot}/etc/inittab
+    #perl -p -i -e 's/(.*tty6)/#\1/' ${newroot}/etc/inittab
+
+    rm -f ${newroot}/etc/yum.repos.d/CentOS-Media.repo
+
+    ## Configure EPEL
+    get_epel_config ${release} > ${newroot}/etc/yum.repos.d/epel.repo
+    get_epel_gpg_key ${release} > \
+        ${newroot}/etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-${release}
+
+    #echo "PKG_CONFIG_PATH=/usr/lib/pkgconfig:/usr/local/lib/pkgconfig" > ${newroot}/etc/profile.d/pkgconfig.sh
+    #
+    ##chroot ${newroot} shadowconfig on
+    #sed -i s/root::/root:*:/ ${newroot}/etc/shadow
+    #
+    ##have to do this to fix a yummy bug
+    #rm ${newroot}/var/lib/rpm/__*
+    #chroot ${newroot} rpm --rebuilddb
+
+    ##Disable fsck on the image
+    touch ${newroot}/fastboot
+}
 
 function valid_images() {
     _RETVAL=""

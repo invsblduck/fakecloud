@@ -1,4 +1,5 @@
 # -*- mode: shell-script -*-
+# vim: set ft=sh :
 
 # this include defaults for rhel-ish operating sytems.  It tries to be
 # universal between rhel/cent/fedora
@@ -19,7 +20,8 @@ function get_mirror() {
         reltype=development
     fi
 
-    _RETVAL=${FEDORA_MIRROR:-http://mirror.rackspace.com/${dist}/${reltype}/${release}/x86_64/os}
+    #_RETVAL=${FEDORA_MIRROR:-http://mirror.rackspace.com/${dist}/${reltype}/${release}/x86_64/os}
+    _RETVAL=${FEDORA_MIRROR:-http://mirror.rackspace.com/${dist}/${release}/os/x86_64}
 }
 
 # stuff we need to do before grubbing.
@@ -43,28 +45,28 @@ function pre_grub() {
     local mirror=$_RETVAL
 
     # remove the old yum configs... they are likely bork
-    mkdir -p ${mountpoint}/etc/yum.repos.d/old
-    mv ${mountpoint}/etc/yum.repos.d/*repo ${mountpoint}/etc/yum.repos.d/old
-    cat > ${mountpoint}/etc/yum.repos.d/${dist}-${release}.repo <<EOF
-[${dist}-${release}]
-name=${dist}-${release}
-failovermethod=priority
-baseurl=${mirror}
-enabled=1
-gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-${dist}-x86_64
-EOF
+#    mkdir -p ${mountpoint}/etc/yum.repos.d/old
+#    mv ${mountpoint}/etc/yum.repos.d/*repo ${mountpoint}/etc/yum.repos.d/old
+#    cat > ${mountpoint}/etc/yum.repos.d/${dist}-${release}.repo <<EOF
+#[${dist}-${release}]
+#name=${dist}-${release}
+#failovermethod=priority
+#baseurl=${mirror}
+#enabled=1
+#gpgcheck=1
+#gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-${dist}-x86_64
+#EOF
 
     if [ -e ${mountpoint}/etc/selinux/config ]; then
         sed -i ${mountpoint}/etc/selinux/config -e "s/SELINUX.*/SELINUX=disabled/"
     fi
 
     # FIXME: this is probably fedora > 17 specific
-    local kernels=$(ls ${mountpoint}/boot/vmlinu* | head -n1)
-    local kernelver=${kernels#*-}
+    #local kernels=$(ls ${mountpoint}/boot/vmlinu* | head -n1)
+    #local kernelver=${kernels#*-}
 
-    # not sure when dracut came around...
-    chroot ${mountpoint} dracut /boot/initramfs-${kernelver}.img ${kernelver}
+    ## not sure when dracut came around...
+    #chroot ${mountpoint} dracut /boot/initramfs-${kernelver}.img ${kernelver}
     return 0
 }
 
@@ -77,17 +79,52 @@ function post_grub() {
     local release=$2
     local mountpoint=$3
 
-    chroot ${mountpoint} /bin/bash -c "yum install -y openssh-server avahi"
+    # FIXME Shouldn't all of this be a plugin instead?
+    #       Also, systemd doesn't apply to CentOS...
+    case $dist in
+        fedora*)
+            chroot ${mountpoint} /bin/bash -c \
+                "yum install -y openssh-server avahi"
 
-    for d in avahi-daemon.service sshd.service NetworkManager.service rsyslog.service; do
-        chroot ${mountpoint} /bin/bash -c "systemctl enable ${d}"
-    done
+            for d in avahi-daemon sshd NetworkManager rsyslog; do
+                chroot ${mountpoint} /bin/bash -c "systemctl enable ${d}.service"
+            done
 
-    for d in {0..6}; do
-        if [ ! -e ${mountpoint}/etc/systemd/system/getty.target.wants/getty\@tty${d}.service ]; then
-            ln -s "/usr/lib/systemd/system/getty\@.service" ${mountpoint}/etc/systemd/system/getty.target.wants/getty\@tty${d}.service
-        fi
-    done
+            local target=${mountpoint}/etc/systemd/system/getty.target.wants
+            for d in {0..6}; do
+                if [ ! -e ${target}/getty\@tty${d}.service ]; then
+                    ln -s "/usr/lib/systemd/system/getty\@.service" \
+                        ${target}/getty\@tty${d}.service
+                fi
+            done
+            ;;
+    esac
 
     return 0
+}
+
+function get_epel_config() {
+    # $1 - release
+    local release=$1
+
+    cat <<EOF
+[epel]
+name=Extra Packages for Enterprise Linux ${release} - \$basearch
+mirrorlist=http://mirrors.fedoraproject.org/metalink?repo=epel-${release}&arch=\$basearch
+failovermethod=priority
+enabled=1
+gpgcheck=1
+gpgkey=file:///etc/yum/rpm-gpg/RPM-GPG-KEY-EPEL-${release}
+EOF
+
+}
+
+function get_epel_gpg_key() {
+    # $1 - release
+    local release=$1
+
+    curl --silent --connect-timeout 3 --max-time 30 --retry 2 \
+        http://download.fedora.redhat.com/pub/epel/RPM-GPG-KEY-EPEL-${release}
+
+    return $?
 }
