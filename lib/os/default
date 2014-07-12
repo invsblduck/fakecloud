@@ -16,11 +16,9 @@ function get_mirror() {
 
 function validate_image() {
     # $1 - distrelease
-    # Warning, currently makes use of parent namespace
+    local distrelease=${1}
 
-    image_name=${BASE_DIR}/minibase/${1}.tar.gz
-
-    if [ -e ${image_name} ]; then
+    if [ -e "${BASE_DIR}/minibase/${distrelease}.tar.gz" ]; then
         log_debug "Image exists..."
         return 0
     fi
@@ -30,23 +28,41 @@ function validate_image() {
 function make_dist_image() {
     # make dist base image
 
+    local distrelease=${1}
+    local dist=${1%%-*}
+    local release=${1##*-}
+
     log_debug "Creating base image"
     mkdir ${tmpdir}/mountpoint
 
     get_mirror ${dist} ${release}
     local mirror=${_RETVAL}
 
-    # FIXME: dist and release should be passed
     bootstrap $dist $release $mirror $tmpdir
     customize_rootfs ${tmpdir}/mountpoint
 
     log "building tarball"
 
     pushd ${tmpdir}/mountpoint
-    tar -czvf ${image_name} *
+    tar -czvf "${BASE_DIR}/minibase/${distrelease}.tar.gz" *
     popd
 
     rm -rf ${tmpdir}
+}
+
+function bootstrap() {
+    # bootstrap a distro
+    # $1 - dist
+    # $2 - release
+    # $3 - mirror
+    # $4 - tmpdir
+    local dist=${1}
+    local release=${2}
+    local mirror=${3}
+    local tmpdir=${4}
+
+    log "ERROR: don't know how to bootstrap distro '$dist'."
+    return 1
 }
 
 function customize_rootfs() {
@@ -68,22 +84,6 @@ function customize_keys() {
         cat ${SSH_KEY} >> ${1}/root/.ssh/authorized_keys
         chmod 600 ${1}/root/.ssh/authorized_keys
     fi
-}
-
-function bootstrap() {
-    # bootstrap debianish distros
-    # $1 - dist
-    # $2 - release
-    # $3 - mirror
-    # $4 - tmpdir
-    local dist=$1
-    local release=$2
-    local mirror=$3
-    local tmpdir=$4
-
-    log "debootstrapping $dist-$release with mirror ${mirror}"
-    debootstrap --include=openssh-server,avahi-daemon,libnss-mdns,sudo \
-        ${release} ${tmpdir}/mountpoint ${mirror}
 }
 
 function customize_passwd() {

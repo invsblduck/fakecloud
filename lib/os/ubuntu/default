@@ -1,10 +1,28 @@
 # -*- mode: shell-script -*-
+# vim: set ft=sh :
 
 EXTRA_PACKAGES=${UBUNTU_EXTRA_PACKAGES:-emacs23-nox sudo}
 
+function bootstrap() {
+    # bootstrap a distro
+    # $1 - dist
+    # $2 - release
+    # $3 - mirror
+    # $4 - tmpdir
+    local dist=${1}
+    local release=${2}
+    local mirror=${3}
+    local tmpdir=${4}
+
+    log "debootstrapping $dist-$release with mirror ${mirror}"
+    debootstrap --include=openssh-server,avahi-daemon,libnss-mdns,sudo \
+        ${release} ${tmpdir}/mountpoint ${mirror}
+}
+
 function valid_images() {
     _RETVAL=""
-    for release in maverick natty oneiric; do
+    local names=(maverick natty oneiric precise quantal raring saucy)
+    for release in "${names[@]}"; do
         _RETVAL+="ubuntu-${release} "
     done
 }
