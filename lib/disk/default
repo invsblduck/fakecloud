@@ -209,7 +209,7 @@ function expand_dist_to_sized_base() {
 
     # extract the debootstrap
     log_debug "Extracting..."
-    tar -xvzf ${BASE_DIR}/minibase/${1}.tar.gz -C ${working}/mnt
+    tar -xvzf ${BASE_DIR}/minibase/${distrelease}.tar.gz -C ${working}/mnt
     mkdir -p ${working}/mnt/boot
 
     # This is safe for everyone...
