@@ -43,23 +43,23 @@ them out from under things.  That way lies madness.
 
 Call Stack
 -----------
-fakecloud:
-    create() ==>
-
-        virt.sh:
-            spin_instance() ==>
-            make_instance_drive() ==>
-
-                lib/disk/default:
-                    make_bootable_drive() ==>
-                    expand_dist_to_sized_base() ==>
-
-                        virt.sh:
-                            maybe_make_dist_image() ==>
-
-                                lib/os/default:
-                                    validate_image().
-                                    make_dist_image() ==>
-                                    bootstrap(). #debootstrap
-                                    customize_rootfs(). #keys & password
-
+    fakecloud:
+        create() ==>
+    
+            virt.sh:
+                spin_instance() ==>
+                make_instance_drive() ==>
+    
+                    lib/disk/default:
+                        make_bootable_drive() ==>
+                        expand_dist_to_sized_base() ==>
+    
+                            virt.sh:
+                                maybe_make_dist_image() ==>
+    
+                                    lib/os/default:
+                                        validate_image().
+                                        make_dist_image() ==>
+                                        bootstrap(). #debootstrap
+                                        customize_rootfs(). #keys & password
+    
