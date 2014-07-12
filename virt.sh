@@ -417,12 +417,13 @@ function make_instance_drive() {
 }
 
 function maybe_make_dist_image() {
-    # $1 - distrelease (ubuntu-natty, etc)
+    # $1 - distrelease (ubuntu-natty, centos-6, etc)
 
-    dist=${1%%-*}
-    release=${1##*-}
-    arch=amd64
-    tmpdir=$(mktemp -d)
+    local distrelease=${1}
+    local dist=${1%%-*}
+    local release=${1##*-}
+    local arch=amd64
+    local tmpdir=$(mktemp -d)
 
     function maybe_make_dist_image_cleanup() {
         rm -rf ${tmpdir}
@@ -442,12 +443,12 @@ function maybe_make_dist_image() {
         mkdir -p ${BASE_DIR}/minibase
     fi
 
-    log_debug "checking for dist image for ${1}"
+    log_debug "checking for dist image for ${distrelease}"
     log_debug "Using: $(declare -f validate_image)"
-    if ! validate_image ${1}; then
+    if ! validate_image ${distrelease}; then
         log "No valid dist image yet.  Creating."
         log_debug "Using: $(declare -f make_dist_image)"
-        make_dist_image ${1}
+        make_dist_image ${distrelease}
     fi
 }
 
