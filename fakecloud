@@ -69,8 +69,8 @@ function check_environment() {
 }
 
 function usage() {
-    cat <<EOF
-${prog} [options] [command]
+    cat >&3 <<EOF
+usage: ${prog##*/} [options] [command]
 
 Valid commands:
     create {<name>} {<distrelease>}
